@@ -50,6 +50,12 @@ export const STORAGE_KEYS = {
   TIMERS: "nox_timers",
   LOCATION: "nox_location",
   WEATHER_CACHE: "nox_weather_cache",
+  WAKE_MESSAGES_ENABLED: "nox_wake_msg_enabled",
+  WAKE_SASS_LEVEL: "nox_wake_sass_level",
+  TTS_ENABLED: "nox_tts_enabled",
+  TTS_LANGUAGE: "nox_tts_language",
+  TTS_PITCH: "nox_tts_pitch",
+  TTS_RATE: "nox_tts_rate",
 } as const;
 
 export type ColorScheme = "light" | "dark";
@@ -60,8 +66,11 @@ export interface SchemeColors {
   text: string;
   textSecondary: string;
   border: string;
+  accent: string;
   blurTint: "light" | "dark";
 }
+
+export const ACCENT_GOLD = "#FFD700";
 
 export const LIGHT_COLORS: SchemeColors = {
   background: "#F0F4F8",
@@ -69,15 +78,17 @@ export const LIGHT_COLORS: SchemeColors = {
   text: "#1E293B",
   textSecondary: "#64748B",
   border: "rgba(0,0,0,0.1)",
+  accent: "#1E293B",
   blurTint: "light",
 };
 
 export const DARK_COLORS: SchemeColors = {
-  background: "#000000",
-  surface: "rgba(255,255,255,0.08)",
+  background: "#001F3F",
+  surface: "rgba(255,215,0,0.06)",
   text: "#D1D5DB", // fallback; overridden by glowColor at runtime
   textSecondary: "rgba(255,255,255,0.4)",
   border: "rgba(255,255,255,0.15)",
+  accent: "#FFD700",
   blurTint: "dark",
 };
 

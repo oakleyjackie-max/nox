@@ -24,9 +24,23 @@ export function ParallaxStarfield() {
   const offsetX = useSharedValue(0);
   const offsetY = useSharedValue(0);
 
+  // Slow rotation simulating Earth's rotation
+  const rotation = useSharedValue(0);
+
   const starsVisible = altitude < 6;
 
   const stars = useMemo(() => generateStars(STAR_COUNT), []);
+
+  // Start slow rotation animation
+  useEffect(() => {
+    if (!starsVisible) return;
+    rotation.value = 0;
+    rotation.value = withRepeat(
+      withTiming(360, { duration: 240_000, easing: Easing.linear }),
+      -1,
+      false
+    );
+  }, [starsVisible]);
 
   useEffect(() => {
     if (!starsVisible) return;
@@ -37,12 +51,9 @@ export function ParallaxStarfield() {
       const available = await Gyroscope.isAvailableAsync().catch(() => false);
       if (!available) return;
 
-      Gyroscope.setUpdateInterval(50); // 20 fps for gyro updates
+      Gyroscope.setUpdateInterval(50);
 
       subscription = Gyroscope.addListener(({ x, y }) => {
-        // Gyro returns rotation rate in rad/s. We integrate a damped
-        // version to get a smooth positional offset.
-        // x = pitch (tilt forward/back), y = roll (tilt left/right)
         const clamp = (v: number, min: number, max: number) =>
           Math.max(min, Math.min(max, v));
 
@@ -64,19 +75,40 @@ export function ParallaxStarfield() {
     };
   }, [starsVisible]);
 
+  const rotationStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rotation.value}deg` }],
+  }));
+
   if (!starsVisible) return null;
 
+  // Oversize the container to prevent clipping during rotation
+  const oversize = 1.4;
+  const ofsX = -width * (oversize - 1) * 0.5;
+  const ofsY = -height * (oversize - 1) * 0.5;
+
   return (
-    <Animated.View style={[StyleSheet.absoluteFill, { pointerEvents: "none" }]}>
+    <Animated.View
+      style={[
+        {
+          position: "absolute",
+          width: width * oversize,
+          height: height * oversize,
+          left: ofsX,
+          top: ofsY,
+          pointerEvents: "none",
+        },
+        rotationStyle,
+      ]}
+    >
       {stars.map((star) => (
         <TwinklingStar
           key={star.id}
-          x={star.x * width}
-          y={star.y * height}
+          x={star.x * width * oversize}
+          y={star.y * height * oversize}
           size={star.size}
           baseOpacity={star.opacity}
           twinkleSpeed={star.twinkleSpeed}
-          depth={star.size / 3} // smaller stars = farther = less parallax
+          depth={star.size / 3}
           offsetX={offsetX}
           offsetY={offsetY}
         />

@@ -19,6 +19,8 @@ export function useStopwatch(): StopwatchState {
   const accumulatedRef = useRef(0);
 
   const start = useCallback(() => {
+    // Guard: prevent duplicate intervals if already running
+    if (intervalRef.current) return;
     startTimeRef.current = Date.now();
     setIsRunning(true);
     intervalRef.current = setInterval(() => {

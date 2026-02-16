@@ -3,7 +3,7 @@ import { View, StyleSheet } from "react-native";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 import "@/global.css";
@@ -13,6 +13,11 @@ import { LocationProvider } from "@/context/LocationContext";
 import { SkySyncBackground } from "@/components/sky/SkySyncBackground";
 import { ParallaxStarfield } from "@/components/sky/ParallaxStarfield";
 import { ToolsDrawer } from "@/components/tools/ToolsDrawer";
+import {
+  addNotificationResponseListener,
+  addNotificationReceivedListener,
+} from "@/lib/notifications";
+import { speakMessage, SASS_RATE_PRESETS } from "@/lib/speech";
 
 export { ErrorBoundary } from "expo-router";
 
@@ -23,7 +28,49 @@ export const unstable_settings = {
 SplashScreen.preventAutoHideAsync();
 
 function RootInner() {
-  const { isDark, dimmer, colors } = useTheme();
+  const { isDark, dimmer, colors, ttsEnabled, ttsOptions, wakeSassLevel } = useTheme();
+  const ttsEnabledRef = useRef(ttsEnabled);
+  const ttsOptionsRef = useRef(ttsOptions);
+  const sassLevelRef = useRef(wakeSassLevel);
+
+  // Keep refs in sync so notification listeners have fresh values
+  useEffect(() => { ttsEnabledRef.current = ttsEnabled; }, [ttsEnabled]);
+  useEffect(() => { ttsOptionsRef.current = ttsOptions; }, [ttsOptions]);
+  useEffect(() => { sassLevelRef.current = wakeSassLevel; }, [wakeSassLevel]);
+
+  // TTS on notification received (app in foreground)
+  useEffect(() => {
+    const receivedSub = addNotificationReceivedListener((notification) => {
+      if (!ttsEnabledRef.current) return;
+      const body = notification.request.content.body;
+      if (body && notification.request.content.data?.alarmId) {
+        // Apply sass-level rate preset, merged with user options
+        const sassRate = SASS_RATE_PRESETS[sassLevelRef.current] ?? 1.0;
+        speakMessage(body, {
+          ...ttsOptionsRef.current,
+          rate: ttsOptionsRef.current.rate * sassRate,
+        });
+      }
+    });
+
+    // TTS on notification tap (app was in background or closed)
+    const responseSub = addNotificationResponseListener((response) => {
+      if (!ttsEnabledRef.current) return;
+      const body = response.notification.request.content.body;
+      if (body && response.notification.request.content.data?.alarmId) {
+        const sassRate = SASS_RATE_PRESETS[sassLevelRef.current] ?? 1.0;
+        speakMessage(body, {
+          ...ttsOptionsRef.current,
+          rate: ttsOptionsRef.current.rate * sassRate,
+        });
+      }
+    });
+
+    return () => {
+      receivedSub.remove();
+      responseSub.remove();
+    };
+  }, []);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>

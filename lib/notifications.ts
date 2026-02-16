@@ -1,5 +1,6 @@
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
+import { getRandomMessage, type SassLevel } from "./wakeUpMessages";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -24,9 +25,19 @@ export async function scheduleAlarm(
   hour: number,
   minute: number,
   repeat: number[], // days of week: 1=Sunday, 2=Monday, etc.
-  label: string
+  label: string,
+  wakeMessagesEnabled?: boolean,
+  sassLevel?: SassLevel
 ): Promise<string[]> {
   const notifIds: string[] = [];
+
+  // Use wake-up message if enabled, otherwise fall back to label
+  const getBody = () => {
+    if (wakeMessagesEnabled && sassLevel) {
+      return getRandomMessage(sassLevel);
+    }
+    return label || "Time to wake up!";
+  };
 
   if (repeat.length === 0) {
     // One-shot: schedule for the next occurrence of this time
@@ -38,7 +49,7 @@ export async function scheduleAlarm(
     const notifId = await Notifications.scheduleNotificationAsync({
       content: {
         title: "Nox Alarm",
-        body: label || "Time to wake up!",
+        body: getBody(),
         data: { alarmId: id },
         sound: true,
       },
@@ -54,7 +65,7 @@ export async function scheduleAlarm(
       const notifId = await Notifications.scheduleNotificationAsync({
         content: {
           title: "Nox Alarm",
-          body: label || "Time to wake up!",
+          body: getBody(),
           data: { alarmId: id },
           sound: true,
         },

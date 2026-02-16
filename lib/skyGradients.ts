@@ -7,8 +7,8 @@ export interface GradientStop {
 }
 
 export const GRADIENT_MAP: GradientStop[] = [
-  { maxAltitude: -18, colors: ["#000000", "#020208", "#050510"] },
-  { maxAltitude: -12, colors: ["#0a0a2e", "#0f0f32", "#1a1a3c"] },
+  { maxAltitude: -18, colors: ["#001F3F", "#001830", "#001525"] },
+  { maxAltitude: -12, colors: ["#0a1a3e", "#0f1f42", "#1a2a4c"] },
   { maxAltitude: -6, colors: ["#1a1040", "#2d1b69", "#4a2c8a"] },
   { maxAltitude: 0, colors: ["#2d1b69", "#6d28d9", "#d97706", "#fbbf24"] },
   { maxAltitude: 15, colors: ["#f59e0b", "#fb923c", "#60a5fa", "#3b82f6"] },

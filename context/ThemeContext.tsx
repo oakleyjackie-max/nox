@@ -10,6 +10,9 @@ import {
   DARK_COLORS,
 } from "@/lib/constants";
 import { getItem, setItem } from "@/lib/storage";
+import type { SassLevel } from "@/lib/wakeUpMessages";
+import type { TTSOptions } from "@/lib/speech";
+import { DEFAULT_TTS_OPTIONS } from "@/lib/speech";
 
 interface ThemeContextValue {
   glowMode: GlowMode;
@@ -22,6 +25,16 @@ interface ThemeContextValue {
   dimmer: number;
   setDimmer: (value: number) => void;
   colors: SchemeColors;
+  wakeMessagesEnabled: boolean;
+  setWakeMessagesEnabled: (enabled: boolean) => void;
+  wakeSassLevel: SassLevel;
+  setWakeSassLevel: (level: SassLevel) => void;
+  ttsEnabled: boolean;
+  setTtsEnabled: (enabled: boolean) => void;
+  ttsOptions: TTSOptions;
+  setTtsLanguage: (lang: string) => void;
+  setTtsPitch: (pitch: number) => void;
+  setTtsRate: (rate: number) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
@@ -35,12 +48,28 @@ const ThemeContext = createContext<ThemeContextValue>({
   dimmer: 0,
   setDimmer: () => {},
   colors: DARK_COLORS,
+  wakeMessagesEnabled: true,
+  setWakeMessagesEnabled: () => {},
+  wakeSassLevel: "medium",
+  setWakeSassLevel: () => {},
+  ttsEnabled: false,
+  setTtsEnabled: () => {},
+  ttsOptions: DEFAULT_TTS_OPTIONS,
+  setTtsLanguage: () => {},
+  setTtsPitch: () => {},
+  setTtsRate: () => {},
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [glowMode, setGlowModeState] = useState<GlowMode>("moonlight");
   const [colorScheme, setColorSchemeState] = useState<ColorScheme>("dark");
   const [dimmer, setDimmerState] = useState(0);
+  const [wakeMessagesEnabled, setWakeMessagesEnabledState] = useState(true);
+  const [wakeSassLevel, setWakeSassLevelState] = useState<SassLevel>("medium");
+  const [ttsEnabled, setTtsEnabledState] = useState(false);
+  const [ttsLanguage, setTtsLanguageState] = useState(DEFAULT_TTS_OPTIONS.language);
+  const [ttsPitch, setTtsPitchState] = useState(DEFAULT_TTS_OPTIONS.pitch);
+  const [ttsRate, setTtsRateState] = useState(DEFAULT_TTS_OPTIONS.rate);
 
   useEffect(() => {
     getItem<GlowMode>(STORAGE_KEYS.GLOW_MODE).then((saved) => {
@@ -51,6 +80,24 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     });
     getItem<number>(STORAGE_KEYS.DIMMER).then((saved) => {
       if (saved !== null && saved !== undefined) setDimmerState(saved);
+    });
+    getItem<boolean>(STORAGE_KEYS.WAKE_MESSAGES_ENABLED).then((saved) => {
+      if (saved !== null && saved !== undefined) setWakeMessagesEnabledState(saved);
+    });
+    getItem<SassLevel>(STORAGE_KEYS.WAKE_SASS_LEVEL).then((saved) => {
+      if (saved) setWakeSassLevelState(saved);
+    });
+    getItem<boolean>(STORAGE_KEYS.TTS_ENABLED).then((saved) => {
+      if (saved !== null && saved !== undefined) setTtsEnabledState(saved);
+    });
+    getItem<string>(STORAGE_KEYS.TTS_LANGUAGE).then((saved) => {
+      if (saved) setTtsLanguageState(saved);
+    });
+    getItem<number>(STORAGE_KEYS.TTS_PITCH).then((saved) => {
+      if (saved !== null && saved !== undefined) setTtsPitchState(saved);
+    });
+    getItem<number>(STORAGE_KEYS.TTS_RATE).then((saved) => {
+      if (saved !== null && saved !== undefined) setTtsRateState(saved);
     });
   }, []);
 
@@ -70,6 +117,38 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setItem(STORAGE_KEYS.DIMMER, clamped);
   }, []);
 
+  const setWakeMessagesEnabled = useCallback((enabled: boolean) => {
+    setWakeMessagesEnabledState(enabled);
+    setItem(STORAGE_KEYS.WAKE_MESSAGES_ENABLED, enabled);
+  }, []);
+
+  const setWakeSassLevel = useCallback((level: SassLevel) => {
+    setWakeSassLevelState(level);
+    setItem(STORAGE_KEYS.WAKE_SASS_LEVEL, level);
+  }, []);
+
+  const setTtsEnabled = useCallback((enabled: boolean) => {
+    setTtsEnabledState(enabled);
+    setItem(STORAGE_KEYS.TTS_ENABLED, enabled);
+  }, []);
+
+  const setTtsLanguage = useCallback((lang: string) => {
+    setTtsLanguageState(lang);
+    setItem(STORAGE_KEYS.TTS_LANGUAGE, lang);
+  }, []);
+
+  const setTtsPitch = useCallback((pitch: number) => {
+    const clamped = Math.max(0.5, Math.min(2.0, pitch));
+    setTtsPitchState(clamped);
+    setItem(STORAGE_KEYS.TTS_PITCH, clamped);
+  }, []);
+
+  const setTtsRate = useCallback((rate: number) => {
+    const clamped = Math.max(0.5, Math.min(2.0, rate));
+    setTtsRateState(clamped);
+    setItem(STORAGE_KEYS.TTS_RATE, clamped);
+  }, []);
+
   const isDark = colorScheme === "dark";
   const glowColor = GLOW_COLORS[glowMode];
   const glowRadius = GLOW_SHADOW_RADIUS[glowMode];
@@ -81,6 +160,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       text: glowColor,
     };
   }, [isDark, glowColor]);
+
+  const ttsOptions: TTSOptions = useMemo(
+    () => ({ language: ttsLanguage, pitch: ttsPitch, rate: ttsRate }),
+    [ttsLanguage, ttsPitch, ttsRate]
+  );
 
   return (
     <ThemeContext.Provider
@@ -95,6 +179,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         dimmer,
         setDimmer,
         colors,
+        wakeMessagesEnabled,
+        setWakeMessagesEnabled,
+        wakeSassLevel,
+        setWakeSassLevel,
+        ttsEnabled,
+        setTtsEnabled,
+        ttsOptions,
+        setTtsLanguage,
+        setTtsPitch,
+        setTtsRate,
       }}
     >
       {children}

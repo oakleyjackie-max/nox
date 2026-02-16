@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useCallback } from "react";
 import { View, StyleSheet, ScrollView, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
@@ -7,7 +7,10 @@ import { NeonText } from "@/components/ui/NeonText";
 import { useTheme } from "@/context/ThemeContext";
 import { useLocation } from "@/context/LocationContext";
 import { GlowMode, GLOW_COLORS, GLOW_LABELS, GLOW_SHADOW_RADIUS } from "@/lib/constants";
-import { MapPin, Sun, Moon } from "lucide-react-native";
+import { SASS_LEVELS, SASS_LABELS, getRandomMessage } from "@/lib/wakeUpMessages";
+import type { SassLevel } from "@/lib/wakeUpMessages";
+import { TTS_LANGUAGES, speakMessage } from "@/lib/speech";
+import { MapPin, Sun, Moon, RefreshCw, Volume2 } from "lucide-react-native";
 import { NeonIcon } from "@/components/ui/NeonIcon";
 
 const GLOW_MODES: GlowMode[] = ["moonlight", "nightVision", "deepSpace", "radar"];
@@ -23,8 +26,28 @@ export default function SettingsScreen() {
     dimmer,
     setDimmer,
     colors,
+    wakeMessagesEnabled,
+    setWakeMessagesEnabled,
+    wakeSassLevel,
+    setWakeSassLevel,
+    ttsEnabled,
+    setTtsEnabled,
+    ttsOptions,
+    setTtsLanguage,
+    setTtsPitch,
+    setTtsRate,
   } = useTheme();
   const { latitude, longitude, error: locError } = useLocation();
+
+  // Preview message state
+  const [previewMessage, setPreviewMessage] = useState(() =>
+    getRandomMessage(wakeSassLevel)
+  );
+
+  const refreshPreview = useCallback(() => {
+    Haptics.selectionAsync();
+    setPreviewMessage(getRandomMessage(wakeSassLevel));
+  }, [wakeSassLevel]);
 
   return (
     <ScrollView
@@ -34,13 +57,13 @@ export default function SettingsScreen() {
         { paddingTop: insets.top + 20, paddingBottom: 100 },
       ]}
     >
-      <NeonText size={13} intensity={0.4} style={styles.header}>
+      <NeonText size={15} intensity={0.4} style={styles.header}>
         SETTINGS
       </NeonText>
 
       {/* Display Mode */}
       <GlassCard>
-        <NeonText size={13} intensity={0.5} style={styles.sectionTitle}>
+        <NeonText size={14} intensity={0.5} style={styles.sectionTitle}>
           DISPLAY
         </NeonText>
 
@@ -50,15 +73,15 @@ export default function SettingsScreen() {
             style={[
               styles.toggleBtn,
               !isDark && styles.toggleBtnActive,
-              !isDark && { borderColor: colors.text },
+              !isDark && { borderColor: colors.accent },
             ]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               setColorScheme("light");
             }}
           >
-            <Sun size={16} color={!isDark ? colors.text : colors.textSecondary} />
-            <NeonText size={13} intensity={!isDark ? 0.9 : 0.4}>
+            <Sun size={16} color={!isDark ? colors.accent : colors.textSecondary} />
+            <NeonText size={14} intensity={!isDark ? 0.9 : 0.4}>
               Light
             </NeonText>
           </Pressable>
@@ -66,15 +89,15 @@ export default function SettingsScreen() {
             style={[
               styles.toggleBtn,
               isDark && styles.toggleBtnActive,
-              isDark && { borderColor: colors.text },
+              isDark && { borderColor: colors.accent },
             ]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               setColorScheme("dark");
             }}
           >
-            <Moon size={16} color={isDark ? colors.text : colors.textSecondary} />
-            <NeonText size={13} intensity={isDark ? 0.9 : 0.4}>
+            <Moon size={16} color={isDark ? colors.accent : colors.textSecondary} />
+            <NeonText size={14} intensity={isDark ? 0.9 : 0.4}>
               Dark
             </NeonText>
           </Pressable>
@@ -91,15 +114,14 @@ export default function SettingsScreen() {
                 styles.sliderFill,
                 {
                   width: `${dimmer * 100}%`,
-                  backgroundColor: isDark ? colors.text : colors.textSecondary,
+                  backgroundColor: colors.accent,
                 },
               ]}
             />
             <Pressable
               style={StyleSheet.absoluteFill}
               onPress={(e) => {
-                const { locationX } = e.nativeEvent;
-                // We need the track width; use layout measurement
+                handleSliderTouch(e.nativeEvent.locationX, setDimmer);
               }}
               onStartShouldSetResponder={() => true}
               onMoveShouldSetResponder={() => true}
@@ -112,23 +134,283 @@ export default function SettingsScreen() {
             />
           </View>
           <View style={styles.dimmerLabels}>
-            <NeonText size={10} intensity={0.3}>
+            <NeonText size={11} intensity={0.3}>
               Bright
             </NeonText>
-            <NeonText size={10} intensity={0.3}>
+            <NeonText size={11} intensity={0.3}>
               {Math.round(dimmer * 100)}%
             </NeonText>
-            <NeonText size={10} intensity={0.3}>
+            <NeonText size={11} intensity={0.3}>
               Dim
             </NeonText>
           </View>
         </View>
       </GlassCard>
 
+      {/* Wake-Up Messages */}
+      <GlassCard>
+        <NeonText size={14} intensity={0.5} style={styles.sectionTitle}>
+          WAKE-UP MESSAGES
+        </NeonText>
+
+        {/* Enable/Disable Toggle */}
+        <View style={styles.toggleRow}>
+          <Pressable
+            style={[
+              styles.toggleBtn,
+              wakeMessagesEnabled && styles.toggleBtnActive,
+              wakeMessagesEnabled && { borderColor: colors.accent },
+            ]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setWakeMessagesEnabled(true);
+            }}
+          >
+            <NeonText size={14} intensity={wakeMessagesEnabled ? 0.9 : 0.4}>
+              ON
+            </NeonText>
+          </Pressable>
+          <Pressable
+            style={[
+              styles.toggleBtn,
+              !wakeMessagesEnabled && styles.toggleBtnActive,
+              !wakeMessagesEnabled && { borderColor: colors.accent },
+            ]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setWakeMessagesEnabled(false);
+            }}
+          >
+            <NeonText size={14} intensity={!wakeMessagesEnabled ? 0.9 : 0.4}>
+              OFF
+            </NeonText>
+          </Pressable>
+        </View>
+
+        {/* Sass Level Picker */}
+        {wakeMessagesEnabled && (
+          <>
+            <NeonText size={12} intensity={0.4} style={styles.dimmerLabel}>
+              SASS LEVEL
+            </NeonText>
+            <View style={styles.sassRow}>
+              {SASS_LEVELS.map((level) => {
+                const active = wakeSassLevel === level;
+                return (
+                  <Pressable
+                    key={level}
+                    style={[
+                      styles.sassChip,
+                      {
+                        borderColor: active ? colors.accent : colors.border,
+                        backgroundColor: active ? `${colors.accent}20` : "transparent",
+                      },
+                    ]}
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      setWakeSassLevel(level);
+                      setPreviewMessage(getRandomMessage(level));
+                    }}
+                  >
+                    <NeonText size={13} intensity={active ? 0.9 : 0.4}>
+                      {SASS_LABELS[level]}
+                    </NeonText>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* Preview */}
+            <View style={styles.previewSection}>
+              <View style={styles.previewHeader}>
+                <NeonText size={12} intensity={0.4} style={styles.dimmerLabel}>
+                  PREVIEW
+                </NeonText>
+                <Pressable onPress={refreshPreview} hitSlop={12}>
+                  <RefreshCw size={14} color={colors.textSecondary} />
+                </Pressable>
+              </View>
+              <View style={[styles.previewBox, { borderColor: colors.border }]}>
+                <NeonText size={13} intensity={0.6} style={styles.previewText}>
+                  {previewMessage}
+                </NeonText>
+              </View>
+            </View>
+          </>
+        )}
+      </GlassCard>
+
+      {/* Text-to-Speech */}
+      <GlassCard>
+        <NeonText size={14} intensity={0.5} style={styles.sectionTitle}>
+          TEXT-TO-SPEECH
+        </NeonText>
+
+        {/* TTS Enable/Disable */}
+        <View style={styles.toggleRow}>
+          <Pressable
+            style={[
+              styles.toggleBtn,
+              ttsEnabled && styles.toggleBtnActive,
+              ttsEnabled && { borderColor: colors.accent },
+            ]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setTtsEnabled(true);
+            }}
+          >
+            <NeonText size={14} intensity={ttsEnabled ? 0.9 : 0.4}>
+              ON
+            </NeonText>
+          </Pressable>
+          <Pressable
+            style={[
+              styles.toggleBtn,
+              !ttsEnabled && styles.toggleBtnActive,
+              !ttsEnabled && { borderColor: colors.accent },
+            ]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setTtsEnabled(false);
+            }}
+          >
+            <NeonText size={14} intensity={!ttsEnabled ? 0.9 : 0.4}>
+              OFF
+            </NeonText>
+          </Pressable>
+        </View>
+
+        {ttsEnabled && (
+          <>
+            {/* Language Picker */}
+            <NeonText size={12} intensity={0.4} style={styles.dimmerLabel}>
+              LANGUAGE
+            </NeonText>
+            <View style={styles.sassRow}>
+              {TTS_LANGUAGES.map((lang) => {
+                const active = ttsOptions.language === lang.value;
+                return (
+                  <Pressable
+                    key={lang.value}
+                    style={[
+                      styles.sassChip,
+                      {
+                        borderColor: active ? colors.accent : colors.border,
+                        backgroundColor: active ? `${colors.accent}20` : "transparent",
+                      },
+                    ]}
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      setTtsLanguage(lang.value);
+                    }}
+                  >
+                    <NeonText size={12} intensity={active ? 0.9 : 0.4}>
+                      {lang.label}
+                    </NeonText>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* Pitch Slider */}
+            <View style={styles.dimmerSection}>
+              <NeonText size={12} intensity={0.4} style={styles.dimmerLabel}>
+                PITCH ({ttsOptions.pitch.toFixed(1)})
+              </NeonText>
+              <View style={styles.sliderTrack}>
+                <View
+                  style={[
+                    styles.sliderFill,
+                    {
+                      width: `${((ttsOptions.pitch - 0.5) / 1.5) * 100}%`,
+                      backgroundColor: colors.accent,
+                    },
+                  ]}
+                />
+                <Pressable
+                  style={StyleSheet.absoluteFill}
+                  onPress={(e) => {
+                    const ratio = Math.max(0, Math.min(1, e.nativeEvent.locationX / SLIDER_WIDTH));
+                    setTtsPitch(0.5 + ratio * 1.5);
+                  }}
+                  onStartShouldSetResponder={() => true}
+                  onMoveShouldSetResponder={() => true}
+                  onResponderGrant={(e) => {
+                    const ratio = Math.max(0, Math.min(1, e.nativeEvent.locationX / SLIDER_WIDTH));
+                    setTtsPitch(0.5 + ratio * 1.5);
+                  }}
+                  onResponderMove={(e) => {
+                    const ratio = Math.max(0, Math.min(1, e.nativeEvent.locationX / SLIDER_WIDTH));
+                    setTtsPitch(0.5 + ratio * 1.5);
+                  }}
+                />
+              </View>
+              <View style={styles.dimmerLabels}>
+                <NeonText size={11} intensity={0.3}>Low</NeonText>
+                <NeonText size={11} intensity={0.3}>High</NeonText>
+              </View>
+            </View>
+
+            {/* Rate Slider */}
+            <View style={[styles.dimmerSection, { marginTop: 12 }]}>
+              <NeonText size={12} intensity={0.4} style={styles.dimmerLabel}>
+                SPEED ({ttsOptions.rate.toFixed(1)})
+              </NeonText>
+              <View style={styles.sliderTrack}>
+                <View
+                  style={[
+                    styles.sliderFill,
+                    {
+                      width: `${((ttsOptions.rate - 0.5) / 1.5) * 100}%`,
+                      backgroundColor: colors.accent,
+                    },
+                  ]}
+                />
+                <Pressable
+                  style={StyleSheet.absoluteFill}
+                  onPress={(e) => {
+                    const ratio = Math.max(0, Math.min(1, e.nativeEvent.locationX / SLIDER_WIDTH));
+                    setTtsRate(0.5 + ratio * 1.5);
+                  }}
+                  onStartShouldSetResponder={() => true}
+                  onMoveShouldSetResponder={() => true}
+                  onResponderGrant={(e) => {
+                    const ratio = Math.max(0, Math.min(1, e.nativeEvent.locationX / SLIDER_WIDTH));
+                    setTtsRate(0.5 + ratio * 1.5);
+                  }}
+                  onResponderMove={(e) => {
+                    const ratio = Math.max(0, Math.min(1, e.nativeEvent.locationX / SLIDER_WIDTH));
+                    setTtsRate(0.5 + ratio * 1.5);
+                  }}
+                />
+              </View>
+              <View style={styles.dimmerLabels}>
+                <NeonText size={11} intensity={0.3}>Slow</NeonText>
+                <NeonText size={11} intensity={0.3}>Fast</NeonText>
+              </View>
+            </View>
+
+            {/* Test TTS Button */}
+            <Pressable
+              style={[styles.testTtsBtn, { borderColor: colors.accent }]}
+              onPress={() => {
+                Haptics.selectionAsync();
+                speakMessage(previewMessage, ttsOptions);
+              }}
+            >
+              <Volume2 size={16} color={colors.accent} />
+              <NeonText size={13} intensity={0.7}>
+                Test Voice
+              </NeonText>
+            </Pressable>
+          </>
+        )}
+      </GlassCard>
+
       {/* Theme Picker — only show in dark mode */}
       {isDark && (
         <GlassCard>
-          <NeonText size={13} intensity={0.5} style={styles.sectionTitle}>
+          <NeonText size={14} intensity={0.5} style={styles.sectionTitle}>
             GLOW THEME
           </NeonText>
           <View style={styles.themeGrid}>
@@ -163,7 +445,7 @@ export default function SettingsScreen() {
                     ]}
                   />
                   <NeonText
-                    size={13}
+                    size={14}
                     intensity={active ? 1 : 0.4}
                     style={{ color }}
                   >
@@ -178,17 +460,17 @@ export default function SettingsScreen() {
 
       {/* Location */}
       <GlassCard>
-        <NeonText size={13} intensity={0.5} style={styles.sectionTitle}>
+        <NeonText size={14} intensity={0.5} style={styles.sectionTitle}>
           LOCATION
         </NeonText>
         <View style={styles.locationRow}>
           <NeonIcon icon={MapPin} size={18} intensity={0.6} />
-          <NeonText size={14} intensity={0.6}>
-            {latitude.toFixed(4)}°, {longitude.toFixed(4)}°
+          <NeonText size={15} intensity={0.6}>
+            {latitude.toFixed(4)}, {longitude.toFixed(4)}
           </NeonText>
         </View>
         {locError && (
-          <NeonText size={12} intensity={0.4} style={{ marginTop: 8, color: "#FF3131" }}>
+          <NeonText size={13} intensity={0.4} style={{ marginTop: 8, color: "#FF3131" }}>
             {locError}
           </NeonText>
         )}
@@ -196,13 +478,13 @@ export default function SettingsScreen() {
 
       {/* About */}
       <GlassCard>
-        <NeonText size={13} intensity={0.5} style={styles.sectionTitle}>
+        <NeonText size={14} intensity={0.5} style={styles.sectionTitle}>
           ABOUT
         </NeonText>
-        <NeonText size={14} intensity={0.4}>
-          Nox v1.0.0
+        <NeonText size={15} intensity={0.4}>
+          Nox v1.1.0
         </NeonText>
-        <NeonText size={12} intensity={0.3} style={{ marginTop: 4 }}>
+        <NeonText size={13} intensity={0.3} style={{ marginTop: 4 }}>
           Celestial Alarm & Utility App
         </NeonText>
       </GlassCard>
@@ -255,7 +537,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.15)",
   },
   toggleBtnActive: {
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(255,215,0,0.08)",
   },
   dimmerSection: {
     gap: 6,
@@ -279,6 +561,35 @@ const styles = StyleSheet.create({
   dimmerLabels: {
     flexDirection: "row",
     justifyContent: "space-between",
+  },
+  sassRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  sassChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  previewSection: {
+    gap: 8,
+  },
+  previewHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  previewBox: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+  },
+  previewText: {
+    lineHeight: 20,
   },
   themeGrid: {
     flexDirection: "row",
@@ -305,5 +616,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+  },
+  testTtsBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
   },
 });

@@ -1,5 +1,5 @@
 import React from "react";
-import { Text, TextProps, StyleSheet } from "react-native";
+import { Text, TextProps, StyleSheet, PixelRatio } from "react-native";
 import { useTheme } from "@/context/ThemeContext";
 
 interface NeonTextProps extends TextProps {
@@ -12,6 +12,9 @@ export function NeonText({ style, size, intensity = 1, ...props }: NeonTextProps
 
   const textColor = isDark ? glowColor : colors.text;
   const shadowRadius = isDark ? glowRadius * intensity * (1 - dimmer * 0.7) : 0;
+  const scaledSize = size
+    ? size * Math.max(1, PixelRatio.getFontScale())
+    : undefined;
 
   return (
     <Text
@@ -24,7 +27,7 @@ export function NeonText({ style, size, intensity = 1, ...props }: NeonTextProps
           textShadowRadius: shadowRadius,
           textShadowOffset: { width: 0, height: 0 },
         },
-        size ? { fontSize: size } : undefined,
+        scaledSize ? { fontSize: scaledSize } : undefined,
         style,
       ]}
     />

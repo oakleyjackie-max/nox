@@ -29,7 +29,7 @@ export function GlowButton({
 
   const fontSizes = { sm: 13, md: 15, lg: 18 };
 
-  const borderColor = isDark ? glowColor : colors.text;
+  const borderColor = isDark ? (variant === "filled" ? colors.accent : glowColor) : colors.text;
   const shadowRad = isDark ? glowRadius * 0.6 * (1 - dimmer * 0.7) : 0;
 
   return (

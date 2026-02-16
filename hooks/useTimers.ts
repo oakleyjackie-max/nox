@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import * as Haptics from "expo-haptics";
+import * as Notifications from "expo-notifications";
 import { getItem, setItem } from "@/lib/storage";
 import { STORAGE_KEYS, MAX_TIMERS } from "@/lib/constants";
 
@@ -77,6 +78,15 @@ export function useTimers() {
             intervalsRef.current.delete(id);
           }
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          // Fire immediate local notification
+          Notifications.scheduleNotificationAsync({
+            content: {
+              title: "Timer Done",
+              body: t.label || "Your timer has finished!",
+              sound: true,
+            },
+            trigger: null,
+          });
           return { ...t, remaining: 0, isRunning: false, completed: true };
         }
         return { ...t, remaining };

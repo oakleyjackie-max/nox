@@ -18,7 +18,7 @@ export function GlassTabBar({ state, navigation }: BottomTabBarProps) {
   const { glowColor, glowRadius, isDark, colors } = useTheme();
   const insets = useSafeAreaInsets();
 
-  const focusedColor = isDark ? glowColor : colors.text;
+  const focusedColor = isDark ? colors.accent : colors.text;
   const unfocusedColor = colors.textSecondary;
 
   return (
