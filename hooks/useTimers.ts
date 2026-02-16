@@ -1,8 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { Platform } from "react-native";
 import * as Haptics from "expo-haptics";
 import * as Notifications from "expo-notifications";
 import { getItem, setItem } from "@/lib/storage";
 import { STORAGE_KEYS, MAX_TIMERS } from "@/lib/constants";
+
+function safeHaptic(fn: () => void) {
+  if (Platform.OS !== "web") {
+    try { fn(); } catch {}
+  }
+}
 
 export interface Timer {
   id: string;
@@ -77,16 +84,20 @@ export function useTimers() {
             clearInterval(interval);
             intervalsRef.current.delete(id);
           }
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          // Fire immediate local notification
-          Notifications.scheduleNotificationAsync({
-            content: {
-              title: "Timer Done",
-              body: t.label || "Your timer has finished!",
-              sound: true,
-            },
-            trigger: null,
-          });
+          safeHaptic(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success));
+          // Fire notification
+          if (Platform.OS !== "web") {
+            Notifications.scheduleNotificationAsync({
+              content: {
+                title: "Timer Done",
+                body: t.label || "Your timer has finished!",
+                sound: true,
+              },
+              trigger: null,
+            });
+          } else if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+            new Notification("Timer Done", { body: t.label || "Your timer has finished!" });
+          }
           return { ...t, remaining: 0, isRunning: false, completed: true };
         }
         return { ...t, remaining };

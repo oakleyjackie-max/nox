@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Pressable, StyleSheet } from "react-native";
+import { View, Pressable, StyleSheet, Platform } from "react-native";
 import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/context/ThemeContext";
@@ -23,7 +23,22 @@ export function GlassTabBar({ state, navigation }: BottomTabBarProps) {
 
   return (
     <View style={[styles.outer, { paddingBottom: insets.bottom, borderTopColor: colors.border }]}>
-      <BlurView intensity={60} tint={colors.blurTint} style={StyleSheet.absoluteFill} />
+      {Platform.OS === "web" ? (
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              backgroundColor: isDark ? "rgba(0,15,40,0.7)" : "rgba(255,255,255,0.6)",
+              // @ts-ignore web-only CSS
+              backdropFilter: "blur(30px)",
+              // @ts-ignore web-only CSS
+              WebkitBackdropFilter: "blur(30px)",
+            },
+          ]}
+        />
+      ) : (
+        <BlurView intensity={60} tint={colors.blurTint} style={StyleSheet.absoluteFill} />
+      )}
       <View style={[styles.specular, { borderTopColor: colors.border }]} />
       <View style={styles.row}>
         {state.routes.map((route, index) => {

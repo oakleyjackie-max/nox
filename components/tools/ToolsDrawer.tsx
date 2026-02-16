@@ -4,15 +4,19 @@ import {
   Pressable,
   StyleSheet,
   useWindowDimensions,
+  Platform,
 } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  withRepeat,
+  withTiming,
+  Easing,
 } from "react-native-reanimated";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
-import { Timer, Gauge } from "lucide-react-native";
+import { Timer, Gauge, ChevronLeft } from "lucide-react-native";
 import { NeonText } from "@/components/ui/NeonText";
 import { useTheme } from "@/context/ThemeContext";
 import { Stopwatch } from "./Stopwatch";
@@ -22,17 +26,37 @@ const DRAWER_WIDTH = 400;
 
 type ToolTab = "stopwatch" | "timers";
 
+function safeHaptic(fn: () => void) {
+  if (Platform.OS !== "web") {
+    try { fn(); } catch {}
+  }
+}
+
 export function ToolsDrawer() {
   const { width: screenWidth } = useWindowDimensions();
-  const { glowColor } = useTheme();
+  const { glowColor, isDark } = useTheme();
   const translateX = useSharedValue(DRAWER_WIDTH);
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<ToolTab>("stopwatch");
 
+  // Pulsing animation for the handle
+  const pulse = useSharedValue(0.4);
+  React.useEffect(() => {
+    pulse.value = withRepeat(
+      withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true
+    );
+  }, []);
+
+  const pulseStyle = useAnimatedStyle(() => ({
+    opacity: pulse.value,
+  }));
+
   const open = () => {
     translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
     setIsOpen(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
   };
 
   const close = () => {
@@ -46,15 +70,25 @@ export function ToolsDrawer() {
 
   return (
     <>
-      {/* Edge Handle */}
+      {/* Edge Handle — enlarged & animated for web visibility */}
       {!isOpen && (
         <Pressable style={styles.handle} onPress={open}>
-          <View
+          <Animated.View
             style={[
-              styles.handleBar,
-              { backgroundColor: `${glowColor}60` },
+              styles.handleInner,
+              { backgroundColor: `${glowColor}30`, borderColor: `${glowColor}50` },
+              pulseStyle,
             ]}
-          />
+          >
+            <ChevronLeft size={16} color={glowColor} />
+            <NeonText
+              size={10}
+              intensity={0.6}
+              style={styles.handleLabel}
+            >
+              Tools
+            </NeonText>
+          </Animated.View>
         </Pressable>
       )}
 
@@ -67,7 +101,22 @@ export function ToolsDrawer() {
 
       {/* Drawer */}
       <Animated.View style={[styles.drawer, { width: DRAWER_WIDTH }, drawerStyle]}>
-        <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill} />
+        {Platform.OS === "web" ? (
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              {
+                backgroundColor: isDark ? "rgba(0,15,40,0.75)" : "rgba(255,255,255,0.6)",
+                // @ts-ignore web-only CSS
+                backdropFilter: "blur(25px)",
+                // @ts-ignore web-only CSS
+                WebkitBackdropFilter: "blur(25px)",
+              },
+            ]}
+          />
+        ) : (
+          <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill} />
+        )}
         <View style={styles.specular} />
 
         <View style={styles.content}>
@@ -83,7 +132,7 @@ export function ToolsDrawer() {
               ]}
               onPress={() => {
                 setActiveTab("stopwatch");
-                Haptics.selectionAsync();
+                safeHaptic(() => Haptics.selectionAsync());
               }}
             >
               <Gauge size={18} color={activeTab === "stopwatch" ? glowColor : "rgba(255,255,255,0.4)"} />
@@ -104,7 +153,7 @@ export function ToolsDrawer() {
               ]}
               onPress={() => {
                 setActiveTab("timers");
-                Haptics.selectionAsync();
+                safeHaptic(() => Haptics.selectionAsync());
               }}
             >
               <Timer size={18} color={activeTab === "timers" ? glowColor : "rgba(255,255,255,0.4)"} />
@@ -129,17 +178,28 @@ const styles = StyleSheet.create({
   handle: {
     position: "absolute",
     right: 0,
-    top: "40%",
-    width: 24,
-    height: 80,
+    top: "35%",
+    width: 44,
+    height: 100,
     justifyContent: "center",
     alignItems: "center",
     zIndex: 100,
   },
-  handleBar: {
-    width: 4,
-    height: 40,
-    borderRadius: 2,
+  handleInner: {
+    width: 36,
+    height: 90,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    borderTopRightRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  handleLabel: {
+    letterSpacing: 1,
+    // @ts-ignore web-only
+    writingDirection: "ltr",
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,

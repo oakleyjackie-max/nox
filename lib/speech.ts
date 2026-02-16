@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import * as Speech from "expo-speech";
 
 export interface TTSOptions {
@@ -40,8 +41,9 @@ export const TTS_LANGUAGES = [
 ] as const;
 
 /**
- * Speak a wake-up message aloud using the device's TTS engine.
- * Fully offline — uses expo-speech which wraps native TTS.
+ * Speak a wake-up message aloud.
+ * - Native: uses expo-speech (wraps iOS/Android TTS)
+ * - Web: uses the Web Speech API (SpeechSynthesis)
  */
 export async function speakMessage(
   message: string,
@@ -49,11 +51,18 @@ export async function speakMessage(
 ): Promise<void> {
   const opts = { ...DEFAULT_TTS_OPTIONS, ...options };
 
-  // Stop any currently speaking utterance first
-  const isSpeaking = await Speech.isSpeakingAsync();
-  if (isSpeaking) {
-    Speech.stop();
+  // ── Web: use native Web Speech API ──
+  if (Platform.OS === "web") {
+    return speakWeb(message, opts);
   }
+
+  // ── Native: use expo-speech ──
+  try {
+    const isSpeaking = await Speech.isSpeakingAsync();
+    if (isSpeaking) {
+      Speech.stop();
+    }
+  } catch {}
 
   return new Promise<void>((resolve) => {
     Speech.speak(message, {
@@ -68,8 +77,40 @@ export async function speakMessage(
 }
 
 /**
+ * Web Speech API implementation
+ */
+function speakWeb(message: string, opts: TTSOptions): Promise<void> {
+  return new Promise<void>((resolve) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      resolve();
+      return;
+    }
+
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(message);
+    utterance.lang = opts.language;
+    utterance.pitch = opts.pitch;
+    utterance.rate = opts.rate;
+    utterance.onend = () => resolve();
+    utterance.onerror = () => resolve();
+
+    window.speechSynthesis.speak(utterance);
+  });
+}
+
+/**
  * Stop any currently speaking TTS.
  */
 export function stopSpeaking(): void {
-  Speech.stop();
+  if (Platform.OS === "web") {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    return;
+  }
+  try {
+    Speech.stop();
+  } catch {}
 }

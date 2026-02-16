@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect } from "react";
-import { StyleSheet, useWindowDimensions } from "react-native";
+import { StyleSheet, useWindowDimensions, Platform } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -14,13 +14,13 @@ import { generateStars } from "./StarGenerator";
 import { useSkySync } from "@/hooks/useSkySync";
 
 const STAR_COUNT = 150;
-const PARALLAX_RANGE = 20; // max pixel offset from gyroscope
+const PARALLAX_RANGE = 20; // max pixel offset
 
 export function ParallaxStarfield() {
   const { width, height } = useWindowDimensions();
   const { altitude } = useSkySync();
 
-  // Gyroscope-driven parallax offsets
+  // Gyroscope-driven (native) or mouse-driven (web) parallax offsets
   const offsetX = useSharedValue(0);
   const offsetY = useSharedValue(0);
 
@@ -42,9 +42,23 @@ export function ParallaxStarfield() {
     );
   }, [starsVisible]);
 
+  // Parallax: gyroscope on native, mouse on web
   useEffect(() => {
     if (!starsVisible) return;
 
+    // ── Web: mouse-based parallax ──
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      const handleMouseMove = (e: MouseEvent) => {
+        const nx = (e.clientX / window.innerWidth - 0.5) * 2; // -1 to 1
+        const ny = (e.clientY / window.innerHeight - 0.5) * 2;
+        offsetX.value = withSpring(nx * PARALLAX_RANGE, { damping: 20, stiffness: 90 });
+        offsetY.value = withSpring(ny * PARALLAX_RANGE, { damping: 20, stiffness: 90 });
+      };
+      window.addEventListener("mousemove", handleMouseMove);
+      return () => window.removeEventListener("mousemove", handleMouseMove);
+    }
+
+    // ── Native: gyroscope-based parallax ──
     let subscription: ReturnType<typeof Gyroscope.addListener> | null = null;
 
     const subscribe = async () => {

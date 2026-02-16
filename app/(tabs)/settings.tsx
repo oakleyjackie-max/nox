@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from "react";
-import { View, StyleSheet, ScrollView, Pressable } from "react-native";
+import React, { useState, useCallback, useRef } from "react";
+import { View, StyleSheet, ScrollView, Pressable, Platform, LayoutChangeEvent } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { GlassCard } from "@/components/glass/GlassCard";
@@ -14,6 +14,108 @@ import { MapPin, Sun, Moon, RefreshCw, Volume2 } from "lucide-react-native";
 import { NeonIcon } from "@/components/ui/NeonIcon";
 
 const GLOW_MODES: GlowMode[] = ["moonlight", "nightVision", "deepSpace", "radar"];
+
+function safeHaptic(fn: () => void) {
+  if (Platform.OS !== "web") {
+    try { fn(); } catch {}
+  }
+}
+
+/**
+ * Cross-platform slider component.
+ * On web: uses onLayout + click/mouse events with pageX.
+ * On native: uses responder events with locationX.
+ */
+function CrossPlatformSlider({
+  value,
+  onValueChange,
+  accentColor,
+  min = 0,
+  max = 1,
+}: {
+  value: number;
+  onValueChange: (v: number) => void;
+  accentColor: string;
+  min?: number;
+  max?: number;
+}) {
+  const trackRef = useRef<View>(null);
+  const trackLayoutRef = useRef({ x: 0, width: 280 });
+
+  const computeRatio = (pageX: number) => {
+    const { x, width } = trackLayoutRef.current;
+    return Math.max(0, Math.min(1, (pageX - x) / width));
+  };
+
+  const handleLayout = (e: LayoutChangeEvent) => {
+    // Measure the track's position on screen
+    trackLayoutRef.current.width = e.nativeEvent.layout.width;
+    if (Platform.OS === "web" && trackRef.current) {
+      // On web, we need pageX offset — use measure
+      (trackRef.current as any).measure?.(
+        (fx: number, fy: number, w: number, h: number, px: number, py: number) => {
+          trackLayoutRef.current.x = px;
+          trackLayoutRef.current.width = w;
+        }
+      );
+    }
+  };
+
+  const normalizedValue = (value - min) / (max - min);
+
+  const handleInteraction = (pageX: number) => {
+    const ratio = computeRatio(pageX);
+    onValueChange(min + ratio * (max - min));
+  };
+
+  return (
+    <View
+      ref={trackRef}
+      style={styles.sliderTrack}
+      onLayout={handleLayout}
+    >
+      <View
+        style={[
+          styles.sliderFill,
+          {
+            width: `${normalizedValue * 100}%`,
+            backgroundColor: accentColor,
+          },
+        ]}
+      />
+      <Pressable
+        style={StyleSheet.absoluteFill}
+        onPress={(e) => {
+          // On web, pageX is reliable; on native, locationX is reliable
+          if (Platform.OS === "web") {
+            handleInteraction((e.nativeEvent as any).pageX);
+          } else {
+            const ratio = Math.max(0, Math.min(1, e.nativeEvent.locationX / trackLayoutRef.current.width));
+            onValueChange(min + ratio * (max - min));
+          }
+        }}
+        onStartShouldSetResponder={() => true}
+        onMoveShouldSetResponder={() => true}
+        onResponderGrant={(e) => {
+          if (Platform.OS === "web") {
+            handleInteraction((e.nativeEvent as any).pageX);
+          } else {
+            const ratio = Math.max(0, Math.min(1, e.nativeEvent.locationX / trackLayoutRef.current.width));
+            onValueChange(min + ratio * (max - min));
+          }
+        }}
+        onResponderMove={(e) => {
+          if (Platform.OS === "web") {
+            handleInteraction((e.nativeEvent as any).pageX);
+          } else {
+            const ratio = Math.max(0, Math.min(1, e.nativeEvent.locationX / trackLayoutRef.current.width));
+            onValueChange(min + ratio * (max - min));
+          }
+        }}
+      />
+    </View>
+  );
+}
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -45,7 +147,7 @@ export default function SettingsScreen() {
   );
 
   const refreshPreview = useCallback(() => {
-    Haptics.selectionAsync();
+    safeHaptic(() => Haptics.selectionAsync());
     setPreviewMessage(getRandomMessage(wakeSassLevel));
   }, [wakeSassLevel]);
 
@@ -76,7 +178,7 @@ export default function SettingsScreen() {
               !isDark && { borderColor: colors.accent },
             ]}
             onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
               setColorScheme("light");
             }}
           >
@@ -92,7 +194,7 @@ export default function SettingsScreen() {
               isDark && { borderColor: colors.accent },
             ]}
             onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
               setColorScheme("dark");
             }}
           >
@@ -108,31 +210,11 @@ export default function SettingsScreen() {
           <NeonText size={12} intensity={0.4} style={styles.dimmerLabel}>
             DIMMER
           </NeonText>
-          <View style={styles.sliderTrack}>
-            <View
-              style={[
-                styles.sliderFill,
-                {
-                  width: `${dimmer * 100}%`,
-                  backgroundColor: colors.accent,
-                },
-              ]}
-            />
-            <Pressable
-              style={StyleSheet.absoluteFill}
-              onPress={(e) => {
-                handleSliderTouch(e.nativeEvent.locationX, setDimmer);
-              }}
-              onStartShouldSetResponder={() => true}
-              onMoveShouldSetResponder={() => true}
-              onResponderGrant={(e) => {
-                handleSliderTouch(e.nativeEvent.locationX, setDimmer);
-              }}
-              onResponderMove={(e) => {
-                handleSliderTouch(e.nativeEvent.locationX, setDimmer);
-              }}
-            />
-          </View>
+          <CrossPlatformSlider
+            value={dimmer}
+            onValueChange={setDimmer}
+            accentColor={colors.accent}
+          />
           <View style={styles.dimmerLabels}>
             <NeonText size={11} intensity={0.3}>
               Bright
@@ -162,7 +244,7 @@ export default function SettingsScreen() {
               wakeMessagesEnabled && { borderColor: colors.accent },
             ]}
             onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
               setWakeMessagesEnabled(true);
             }}
           >
@@ -177,7 +259,7 @@ export default function SettingsScreen() {
               !wakeMessagesEnabled && { borderColor: colors.accent },
             ]}
             onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
               setWakeMessagesEnabled(false);
             }}
           >
@@ -207,7 +289,7 @@ export default function SettingsScreen() {
                       },
                     ]}
                     onPress={() => {
-                      Haptics.selectionAsync();
+                      safeHaptic(() => Haptics.selectionAsync());
                       setWakeSassLevel(level);
                       setPreviewMessage(getRandomMessage(level));
                     }}
@@ -255,7 +337,7 @@ export default function SettingsScreen() {
               ttsEnabled && { borderColor: colors.accent },
             ]}
             onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
               setTtsEnabled(true);
             }}
           >
@@ -270,7 +352,7 @@ export default function SettingsScreen() {
               !ttsEnabled && { borderColor: colors.accent },
             ]}
             onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
               setTtsEnabled(false);
             }}
           >
@@ -300,7 +382,7 @@ export default function SettingsScreen() {
                       },
                     ]}
                     onPress={() => {
-                      Haptics.selectionAsync();
+                      safeHaptic(() => Haptics.selectionAsync());
                       setTtsLanguage(lang.value);
                     }}
                   >
@@ -317,34 +399,13 @@ export default function SettingsScreen() {
               <NeonText size={12} intensity={0.4} style={styles.dimmerLabel}>
                 PITCH ({ttsOptions.pitch.toFixed(1)})
               </NeonText>
-              <View style={styles.sliderTrack}>
-                <View
-                  style={[
-                    styles.sliderFill,
-                    {
-                      width: `${((ttsOptions.pitch - 0.5) / 1.5) * 100}%`,
-                      backgroundColor: colors.accent,
-                    },
-                  ]}
-                />
-                <Pressable
-                  style={StyleSheet.absoluteFill}
-                  onPress={(e) => {
-                    const ratio = Math.max(0, Math.min(1, e.nativeEvent.locationX / SLIDER_WIDTH));
-                    setTtsPitch(0.5 + ratio * 1.5);
-                  }}
-                  onStartShouldSetResponder={() => true}
-                  onMoveShouldSetResponder={() => true}
-                  onResponderGrant={(e) => {
-                    const ratio = Math.max(0, Math.min(1, e.nativeEvent.locationX / SLIDER_WIDTH));
-                    setTtsPitch(0.5 + ratio * 1.5);
-                  }}
-                  onResponderMove={(e) => {
-                    const ratio = Math.max(0, Math.min(1, e.nativeEvent.locationX / SLIDER_WIDTH));
-                    setTtsPitch(0.5 + ratio * 1.5);
-                  }}
-                />
-              </View>
+              <CrossPlatformSlider
+                value={ttsOptions.pitch}
+                onValueChange={setTtsPitch}
+                accentColor={colors.accent}
+                min={0.5}
+                max={2.0}
+              />
               <View style={styles.dimmerLabels}>
                 <NeonText size={11} intensity={0.3}>Low</NeonText>
                 <NeonText size={11} intensity={0.3}>High</NeonText>
@@ -356,34 +417,13 @@ export default function SettingsScreen() {
               <NeonText size={12} intensity={0.4} style={styles.dimmerLabel}>
                 SPEED ({ttsOptions.rate.toFixed(1)})
               </NeonText>
-              <View style={styles.sliderTrack}>
-                <View
-                  style={[
-                    styles.sliderFill,
-                    {
-                      width: `${((ttsOptions.rate - 0.5) / 1.5) * 100}%`,
-                      backgroundColor: colors.accent,
-                    },
-                  ]}
-                />
-                <Pressable
-                  style={StyleSheet.absoluteFill}
-                  onPress={(e) => {
-                    const ratio = Math.max(0, Math.min(1, e.nativeEvent.locationX / SLIDER_WIDTH));
-                    setTtsRate(0.5 + ratio * 1.5);
-                  }}
-                  onStartShouldSetResponder={() => true}
-                  onMoveShouldSetResponder={() => true}
-                  onResponderGrant={(e) => {
-                    const ratio = Math.max(0, Math.min(1, e.nativeEvent.locationX / SLIDER_WIDTH));
-                    setTtsRate(0.5 + ratio * 1.5);
-                  }}
-                  onResponderMove={(e) => {
-                    const ratio = Math.max(0, Math.min(1, e.nativeEvent.locationX / SLIDER_WIDTH));
-                    setTtsRate(0.5 + ratio * 1.5);
-                  }}
-                />
-              </View>
+              <CrossPlatformSlider
+                value={ttsOptions.rate}
+                onValueChange={setTtsRate}
+                accentColor={colors.accent}
+                min={0.5}
+                max={2.0}
+              />
               <View style={styles.dimmerLabels}>
                 <NeonText size={11} intensity={0.3}>Slow</NeonText>
                 <NeonText size={11} intensity={0.3}>Fast</NeonText>
@@ -394,7 +434,7 @@ export default function SettingsScreen() {
             <Pressable
               style={[styles.testTtsBtn, { borderColor: colors.accent }]}
               onPress={() => {
-                Haptics.selectionAsync();
+                safeHaptic(() => Haptics.selectionAsync());
                 speakMessage(previewMessage, ttsOptions);
               }}
             >
@@ -428,7 +468,7 @@ export default function SettingsScreen() {
                     },
                   ]}
                   onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
                     setGlowMode(mode);
                   }}
                 >
@@ -482,7 +522,7 @@ export default function SettingsScreen() {
           ABOUT
         </NeonText>
         <NeonText size={15} intensity={0.4}>
-          Nox v1.1.0
+          Nox v1.2.0
         </NeonText>
         <NeonText size={13} intensity={0.3} style={{ marginTop: 4 }}>
           Celestial Alarm & Utility App
@@ -490,16 +530,6 @@ export default function SettingsScreen() {
       </GlassCard>
     </ScrollView>
   );
-}
-
-const SLIDER_WIDTH = 280;
-
-function handleSliderTouch(
-  locationX: number,
-  setDimmer: (v: number) => void
-) {
-  const ratio = Math.max(0, Math.min(1, locationX / SLIDER_WIDTH));
-  setDimmer(ratio);
 }
 
 const styles = StyleSheet.create({
@@ -546,17 +576,18 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   sliderTrack: {
-    height: 6,
-    width: SLIDER_WIDTH,
+    height: 12,
     maxWidth: "100%",
-    borderRadius: 3,
+    borderRadius: 6,
     backgroundColor: "rgba(128,128,128,0.2)",
     overflow: "hidden",
     position: "relative",
+    // @ts-ignore web cursor
+    cursor: Platform.OS === "web" ? "pointer" : undefined,
   },
   sliderFill: {
     height: "100%",
-    borderRadius: 3,
+    borderRadius: 6,
   },
   dimmerLabels: {
     flexDirection: "row",

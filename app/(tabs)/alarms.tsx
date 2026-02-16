@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet, Pressable } from "react-native";
+import { View, StyleSheet, Pressable, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Plus } from "lucide-react-native";
 import { AlarmList } from "@/components/alarms/AlarmList";
@@ -9,6 +9,12 @@ import { useTheme } from "@/context/ThemeContext";
 import { useAlarms, Alarm } from "@/hooks/useAlarms";
 import { requestNotificationPermissions, addNotificationReceivedListener } from "@/lib/notifications";
 import * as Haptics from "expo-haptics";
+
+function safeHaptic(fn: () => void) {
+  if (Platform.OS !== "web") {
+    try { fn(); } catch {}
+  }
+}
 
 export default function AlarmsScreen() {
   const insets = useSafeAreaInsets();
@@ -23,7 +29,7 @@ export default function AlarmsScreen() {
 
   useEffect(() => {
     const sub = addNotificationReceivedListener(() => {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      safeHaptic(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success));
     });
     return () => sub.remove();
   }, []);
@@ -77,7 +83,7 @@ export default function AlarmsScreen() {
         onPress={() => {
           setEditingAlarm(null);
           setEditorVisible(true);
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium));
         }}
       >
         <Plus size={28} color={glowColor} />
