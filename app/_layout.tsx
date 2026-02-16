@@ -1,33 +1,70 @@
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
-import 'react-native-reanimated';
+import React from "react";
+import { View, StyleSheet } from "react-native";
+import { useFonts } from "expo-font";
+import { Stack } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { useEffect } from "react";
+import { StatusBar } from "expo-status-bar";
+import "react-native-reanimated";
+import "@/global.css";
 
-import { useColorScheme } from '@/components/useColorScheme';
+import { ThemeProvider, useTheme } from "@/context/ThemeContext";
+import { LocationProvider } from "@/context/LocationContext";
+import { SkySyncBackground } from "@/components/sky/SkySyncBackground";
+import { ParallaxStarfield } from "@/components/sky/ParallaxStarfield";
+import { ToolsDrawer } from "@/components/tools/ToolsDrawer";
 
-export {
-  // Catch any errors thrown by the Layout component.
-  ErrorBoundary,
-} from 'expo-router';
+export { ErrorBoundary } from "expo-router";
 
 export const unstable_settings = {
-  // Ensure that reloading on `/modal` keeps a back button present.
-  initialRouteName: '(tabs)',
+  initialRouteName: "(tabs)",
 };
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
+
+function RootInner() {
+  const { isDark, dimmer, colors } = useTheme();
+
+  return (
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      {/* Sky background layers — only in dark mode */}
+      {isDark && <SkySyncBackground />}
+      {isDark && <ParallaxStarfield />}
+
+      {/* Main content */}
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: "transparent" },
+          animation: "fade",
+        }}
+      >
+        <Stack.Screen name="(tabs)" />
+      </Stack>
+
+      {/* Dimmer overlay — dark mode only */}
+      {isDark && dimmer > 0 && (
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: `rgba(0,0,0,${dimmer * 0.8})`, pointerEvents: "none" },
+          ]}
+        />
+      )}
+
+      {/* Tools Drawer overlay */}
+      <ToolsDrawer />
+
+      <StatusBar style={isDark ? "light" : "dark"} />
+    </View>
+  );
+}
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-    ...FontAwesome.font,
+    SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
 
-  // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
     if (error) throw error;
   }, [error]);
@@ -42,18 +79,17 @@ export default function RootLayout() {
     return null;
   }
 
-  return <RootLayoutNav />;
-}
-
-function RootLayoutNav() {
-  const colorScheme = useColorScheme();
-
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-      </Stack>
+    <ThemeProvider>
+      <LocationProvider>
+        <RootInner />
+      </LocationProvider>
     </ThemeProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+});

@@ -1,14 +1,38 @@
-import { StyleSheet } from 'react-native';
+import React from "react";
+import { View, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { DigitalClock } from "@/components/clock/DigitalClock";
+import { MoonPhase } from "@/components/clock/MoonPhase";
+import { SunTimesDisplay } from "@/components/clock/SunTimes";
+import { GlassCard } from "@/components/glass/GlassCard";
+import { useSkySync } from "@/hooks/useSkySync";
 
-import EditScreenInfo from '@/components/EditScreenInfo';
-import { Text, View } from '@/components/Themed';
+export default function ClockScreen() {
+  const insets = useSafeAreaInsets();
+  const { sunTimes, moon } = useSkySync();
 
-export default function TabOneScreen() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Tab One</Text>
-      <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-      <EditScreenInfo path="app/(tabs)/index.tsx" />
+    <View style={[styles.container, { paddingTop: insets.top + 20 }]}>
+      <View style={styles.clockArea}>
+        <DigitalClock />
+      </View>
+
+      <View style={styles.infoRow}>
+        <GlassCard style={styles.infoCard}>
+          <MoonPhase
+            illumination={moon.illumination}
+            phaseName={moon.phaseName}
+            phase={moon.phase}
+          />
+        </GlassCard>
+
+        <GlassCard style={styles.infoCard}>
+          <SunTimesDisplay
+            sunrise={sunTimes.sunrise}
+            sunset={sunTimes.sunset}
+          />
+        </GlassCard>
+      </View>
     </View>
   );
 }
@@ -16,16 +40,20 @@ export default function TabOneScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingBottom: 80,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  clockArea: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  separator: {
-    marginVertical: 30,
-    height: 1,
-    width: '80%',
+  infoRow: {
+    flexDirection: "row",
+    gap: 16,
+    marginBottom: 24,
+  },
+  infoCard: {
+    flex: 1,
   },
 });

@@ -1,17 +1,19 @@
-import { Link, Stack } from 'expo-router';
-import { StyleSheet } from 'react-native';
-
-import { Text, View } from '@/components/Themed';
+import { Link, Stack } from "expo-router";
+import { View, StyleSheet } from "react-native";
+import { NeonText } from "@/components/ui/NeonText";
 
 export default function NotFoundScreen() {
   return (
     <>
-      <Stack.Screen options={{ title: 'Oops!' }} />
+      <Stack.Screen options={{ title: "Not Found" }} />
       <View style={styles.container}>
-        <Text style={styles.title}>This screen doesn't exist.</Text>
-
+        <NeonText size={20} intensity={0.8}>
+          This screen doesn't exist.
+        </NeonText>
         <Link href="/" style={styles.link}>
-          <Text style={styles.linkText}>Go to home screen!</Text>
+          <NeonText size={14} intensity={0.6}>
+            Go to home screen
+          </NeonText>
         </Link>
       </View>
     </>
@@ -21,20 +23,13 @@ export default function NotFoundScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     padding: 20,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    backgroundColor: "transparent",
   },
   link: {
     marginTop: 15,
     paddingVertical: 15,
-  },
-  linkText: {
-    fontSize: 14,
-    color: '#2e78b7',
   },
 });
