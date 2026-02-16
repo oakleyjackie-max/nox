@@ -42,29 +42,44 @@ function CrossPlatformSlider({
   const trackRef = useRef<View>(null);
   const trackLayoutRef = useRef({ x: 0, width: 280 });
 
+  /** Re-measure track position using getBoundingClientRect on web */
+  const remeasure = () => {
+    if (Platform.OS === "web" && trackRef.current) {
+      const node = trackRef.current as any;
+      // React Native Web exposes the underlying DOM node
+      const domNode: HTMLElement | null =
+        node.getBoundingClientRect ? node : node._nativeTag ?? null;
+      if (domNode && typeof domNode.getBoundingClientRect === "function") {
+        const rect = domNode.getBoundingClientRect();
+        trackLayoutRef.current.x = rect.left;
+        trackLayoutRef.current.width = rect.width;
+      }
+    }
+  };
+
   const computeRatio = (pageX: number) => {
     const { x, width } = trackLayoutRef.current;
+    if (width <= 0) return 0;
     return Math.max(0, Math.min(1, (pageX - x) / width));
   };
 
   const handleLayout = (e: LayoutChangeEvent) => {
-    // Measure the track's position on screen
     trackLayoutRef.current.width = e.nativeEvent.layout.width;
-    if (Platform.OS === "web" && trackRef.current) {
-      // On web, we need pageX offset — use measure
-      (trackRef.current as any).measure?.(
-        (fx: number, fy: number, w: number, h: number, px: number, py: number) => {
-          trackLayoutRef.current.x = px;
-          trackLayoutRef.current.width = w;
-        }
-      );
-    }
+    // On web, measure using getBoundingClientRect for accurate position
+    remeasure();
   };
 
   const normalizedValue = (value - min) / (max - min);
 
-  const handleInteraction = (pageX: number) => {
+  const handleWebInteraction = (pageX: number) => {
+    // Re-measure every interaction to handle scroll/resize shifts
+    remeasure();
     const ratio = computeRatio(pageX);
+    onValueChange(min + ratio * (max - min));
+  };
+
+  const handleNativeInteraction = (locationX: number) => {
+    const ratio = Math.max(0, Math.min(1, locationX / trackLayoutRef.current.width));
     onValueChange(min + ratio * (max - min));
   };
 
@@ -86,30 +101,26 @@ function CrossPlatformSlider({
       <Pressable
         style={StyleSheet.absoluteFill}
         onPress={(e) => {
-          // On web, pageX is reliable; on native, locationX is reliable
           if (Platform.OS === "web") {
-            handleInteraction((e.nativeEvent as any).pageX);
+            handleWebInteraction((e.nativeEvent as any).pageX);
           } else {
-            const ratio = Math.max(0, Math.min(1, e.nativeEvent.locationX / trackLayoutRef.current.width));
-            onValueChange(min + ratio * (max - min));
+            handleNativeInteraction(e.nativeEvent.locationX);
           }
         }}
         onStartShouldSetResponder={() => true}
         onMoveShouldSetResponder={() => true}
         onResponderGrant={(e) => {
           if (Platform.OS === "web") {
-            handleInteraction((e.nativeEvent as any).pageX);
+            handleWebInteraction((e.nativeEvent as any).pageX);
           } else {
-            const ratio = Math.max(0, Math.min(1, e.nativeEvent.locationX / trackLayoutRef.current.width));
-            onValueChange(min + ratio * (max - min));
+            handleNativeInteraction(e.nativeEvent.locationX);
           }
         }}
         onResponderMove={(e) => {
           if (Platform.OS === "web") {
-            handleInteraction((e.nativeEvent as any).pageX);
+            handleWebInteraction((e.nativeEvent as any).pageX);
           } else {
-            const ratio = Math.max(0, Math.min(1, e.nativeEvent.locationX / trackLayoutRef.current.width));
-            onValueChange(min + ratio * (max - min));
+            handleNativeInteraction(e.nativeEvent.locationX);
           }
         }}
       />

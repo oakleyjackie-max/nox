@@ -1,3 +1,11 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Prevent Tailwind base from flashing white on dark-mode app */
+html, body, #root {
+  background-color: #001F3F;
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}

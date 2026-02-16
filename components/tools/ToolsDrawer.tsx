@@ -19,6 +19,7 @@ import * as Haptics from "expo-haptics";
 import { Timer, Gauge, ChevronLeft } from "lucide-react-native";
 import { NeonText } from "@/components/ui/NeonText";
 import { useTheme } from "@/context/ThemeContext";
+import { useStopwatch } from "@/hooks/useStopwatch";
 import { Stopwatch } from "./Stopwatch";
 import { TimerStack } from "./TimerStack";
 
@@ -38,6 +39,9 @@ export function ToolsDrawer() {
   const translateX = useSharedValue(DRAWER_WIDTH);
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<ToolTab>("stopwatch");
+
+  // Lift stopwatch state here so it persists across tab switches & drawer open/close
+  const stopwatch = useStopwatch();
 
   // Pulsing animation for the handle
   const pulse = useSharedValue(0.4);
@@ -167,7 +171,7 @@ export function ToolsDrawer() {
           </View>
 
           {/* Content */}
-          {activeTab === "stopwatch" ? <Stopwatch /> : <TimerStack />}
+          {activeTab === "stopwatch" ? <Stopwatch {...stopwatch} /> : <TimerStack />}
         </View>
       </Animated.View>
     </>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "@/context/LocationContext";
+import { useTheme } from "@/context/ThemeContext";
 import { getGradientForAltitude, getGradientIndex } from "@/lib/skyGradients";
 import { getSunAltitudeDeg, getSunTimes, getMoonData } from "@/lib/moonCalc";
 import type { MoonData, SunTimes } from "@/lib/moonCalc";
@@ -14,16 +15,27 @@ interface SkySyncData {
 
 export function useSkySync(): SkySyncData {
   const { latitude, longitude } = useLocation();
+  const { skyTimeOverride } = useTheme();
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
+    // When manual override is active, don't auto-update (user controls time)
+    if (skyTimeOverride !== null) return;
     const interval = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(interval);
-  }, []);
+  }, [skyTimeOverride]);
+
+  // Compute effective time: override or real
+  const effectiveNow = useMemo(() => {
+    if (skyTimeOverride === null) return now;
+    const d = new Date();
+    d.setHours(Math.floor(skyTimeOverride / 60), skyTimeOverride % 60, 0, 0);
+    return d;
+  }, [skyTimeOverride, now]);
 
   const altitude = useMemo(
-    () => getSunAltitudeDeg(now, latitude, longitude),
-    [now, latitude, longitude]
+    () => getSunAltitudeDeg(effectiveNow, latitude, longitude),
+    [effectiveNow, latitude, longitude]
   );
 
   const gradientIndex = useMemo(() => getGradientIndex(altitude), [altitude]);
@@ -34,19 +46,19 @@ export function useSkySync(): SkySyncData {
   );
 
   const sunTimes = useMemo(
-    () => getSunTimes(now, latitude, longitude),
+    () => getSunTimes(effectiveNow, latitude, longitude),
     [
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
+      effectiveNow.getFullYear(),
+      effectiveNow.getMonth(),
+      effectiveNow.getDate(),
       latitude,
       longitude,
     ]
   );
 
   const moon = useMemo(
-    () => getMoonData(now),
-    [now.getFullYear(), now.getMonth(), now.getDate(), now.getHours()]
+    () => getMoonData(effectiveNow),
+    [effectiveNow.getFullYear(), effectiveNow.getMonth(), effectiveNow.getDate(), effectiveNow.getHours()]
   );
 
   return { altitude, gradientColors, gradientIndex, sunTimes, moon };

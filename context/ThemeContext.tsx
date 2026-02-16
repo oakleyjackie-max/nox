@@ -35,6 +35,9 @@ interface ThemeContextValue {
   setTtsLanguage: (lang: string) => void;
   setTtsPitch: (pitch: number) => void;
   setTtsRate: (rate: number) => void;
+  /** Minutes of day (0-1439) override for sky gradient, or null for real time */
+  skyTimeOverride: number | null;
+  setSkyTimeOverride: (minutes: number | null) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
@@ -58,6 +61,8 @@ const ThemeContext = createContext<ThemeContextValue>({
   setTtsLanguage: () => {},
   setTtsPitch: () => {},
   setTtsRate: () => {},
+  skyTimeOverride: null,
+  setSkyTimeOverride: () => {},
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
@@ -70,6 +75,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [ttsLanguage, setTtsLanguageState] = useState(DEFAULT_TTS_OPTIONS.language);
   const [ttsPitch, setTtsPitchState] = useState(DEFAULT_TTS_OPTIONS.pitch);
   const [ttsRate, setTtsRateState] = useState(DEFAULT_TTS_OPTIONS.rate);
+  const [skyTimeOverride, setSkyTimeOverrideState] = useState<number | null>(null);
 
   useEffect(() => {
     getItem<GlowMode>(STORAGE_KEYS.GLOW_MODE).then((saved) => {
@@ -149,6 +155,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setItem(STORAGE_KEYS.TTS_RATE, clamped);
   }, []);
 
+  const setSkyTimeOverride = useCallback((minutes: number | null) => {
+    setSkyTimeOverrideState(minutes);
+  }, []);
+
   const isDark = colorScheme === "dark";
   const glowColor = GLOW_COLORS[glowMode];
   const glowRadius = GLOW_SHADOW_RADIUS[glowMode];
@@ -189,6 +199,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         setTtsLanguage,
         setTtsPitch,
         setTtsRate,
+        skyTimeOverride,
+        setSkyTimeOverride,
       }}
     >
       {children}

@@ -3,6 +3,17 @@ import { getItem, setItem } from "@/lib/storage";
 import { STORAGE_KEYS } from "@/lib/constants";
 import { scheduleAlarm, cancelAlarm } from "@/lib/notifications";
 import type { AlarmTheme } from "@/lib/constants";
+import type { SassLevel } from "@/lib/wakeUpMessages";
+
+/** Read current wake-message settings from storage at schedule time */
+async function getWakeSettings(): Promise<{ enabled: boolean; sassLevel: SassLevel }> {
+  const enabled = await getItem<boolean>(STORAGE_KEYS.WAKE_MESSAGES_ENABLED);
+  const sassLevel = await getItem<SassLevel>(STORAGE_KEYS.WAKE_SASS_LEVEL);
+  return {
+    enabled: enabled ?? true,       // default ON
+    sassLevel: sassLevel ?? "medium", // default medium
+  };
+}
 
 export interface Alarm {
   id: string;
@@ -37,7 +48,8 @@ export function useAlarms() {
       const id = crypto.randomUUID();
       let notifIds: string[] = [];
       if (alarm.enabled) {
-        notifIds = await scheduleAlarm(id, alarm.hour, alarm.minute, alarm.repeat, alarm.label);
+        const wake = await getWakeSettings();
+        notifIds = await scheduleAlarm(id, alarm.hour, alarm.minute, alarm.repeat, alarm.label, wake.enabled, wake.sassLevel);
       }
       const newAlarm: Alarm = { ...alarm, id, notifIds };
       await persist([...alarms, newAlarm]);
@@ -62,12 +74,15 @@ export function useAlarms() {
           ) {
             await cancelAlarm(a.notifIds);
             if (merged.enabled) {
+              const wake = await getWakeSettings();
               merged.notifIds = await scheduleAlarm(
                 id,
                 merged.hour,
                 merged.minute,
                 merged.repeat,
-                merged.label
+                merged.label,
+                wake.enabled,
+                wake.sassLevel
               );
             } else {
               merged.notifIds = [];

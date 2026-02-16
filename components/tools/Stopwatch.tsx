@@ -3,7 +3,7 @@ import { View, FlatList, StyleSheet } from "react-native";
 import { NeonText } from "@/components/ui/NeonText";
 import { GlowButton } from "@/components/ui/GlowButton";
 import { GlassCard } from "@/components/glass/GlassCard";
-import { useStopwatch } from "@/hooks/useStopwatch";
+import type { StopwatchState } from "@/hooks/useStopwatch";
 
 function formatMs(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000);
@@ -24,8 +24,7 @@ function formatMs(ms: number): string {
     .padStart(2, "0")}.${centis.toString().padStart(2, "0")}`;
 }
 
-export function Stopwatch() {
-  const { elapsed, laps, isRunning, start, stop, reset, lap } = useStopwatch();
+export function Stopwatch({ elapsed, laps, isRunning, start, stop, reset, lap }: StopwatchState) {
 
   return (
     <View style={styles.container}>
