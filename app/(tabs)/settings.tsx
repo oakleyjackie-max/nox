@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from "react";
-import { View, StyleSheet, ScrollView, Pressable, Platform, LayoutChangeEvent } from "react-native";
+import { View, StyleSheet, ScrollView, Pressable, Platform, LayoutChangeEvent, TextInput, Linking } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { GlassCard } from "@/components/glass/GlassCard";
@@ -9,8 +9,8 @@ import { useLocation } from "@/context/LocationContext";
 import { GlowMode, GLOW_COLORS, GLOW_LABELS, GLOW_SHADOW_RADIUS } from "@/lib/constants";
 import { SASS_LEVELS, SASS_LABELS, getRandomMessage } from "@/lib/wakeUpMessages";
 import type { SassLevel } from "@/lib/wakeUpMessages";
-import { TTS_LANGUAGES, speakMessage } from "@/lib/speech";
-import { MapPin, Sun, Moon, RefreshCw, Volume2 } from "lucide-react-native";
+import { TTS_LANGUAGES, speakMessage, validateGoogleTtsKey } from "@/lib/speech";
+import { MapPin, Sun, Moon, RefreshCw, Volume2, Key, Check, X, ExternalLink } from "lucide-react-native";
 import { NeonIcon } from "@/components/ui/NeonIcon";
 
 const GLOW_MODES: GlowMode[] = ["moonlight", "nightVision", "deepSpace", "radar"];
@@ -149,12 +149,20 @@ export default function SettingsScreen() {
     setTtsLanguage,
     setTtsPitch,
     setTtsRate,
+    googleTtsApiKey,
+    setGoogleTtsApiKey,
   } = useTheme();
   const { latitude, longitude, error: locError } = useLocation();
 
   // Preview message state
   const [previewMessage, setPreviewMessage] = useState(() =>
     getRandomMessage(wakeSassLevel)
+  );
+
+  // Google TTS API key input state
+  const [apiKeyInput, setApiKeyInput] = useState(googleTtsApiKey);
+  const [apiKeyStatus, setApiKeyStatus] = useState<"idle" | "validating" | "valid" | "invalid">(
+    googleTtsApiKey ? "valid" : "idle"
   );
 
   const refreshPreview = useCallback(() => {
@@ -446,7 +454,7 @@ export default function SettingsScreen() {
               style={[styles.testTtsBtn, { borderColor: colors.accent }]}
               onPress={() => {
                 safeHaptic(() => Haptics.selectionAsync());
-                speakMessage(previewMessage, ttsOptions);
+                speakMessage(previewMessage, ttsOptions, googleTtsApiKey || undefined);
               }}
             >
               <Volume2 size={16} color={colors.accent} />
@@ -454,6 +462,102 @@ export default function SettingsScreen() {
                 Test Voice
               </NeonText>
             </Pressable>
+
+            {/* Google Cloud TTS API Key */}
+            <View style={styles.googleTtsSection}>
+              <View style={styles.googleTtsHeader}>
+                <Key size={14} color={colors.textSecondary} />
+                <NeonText size={12} intensity={0.4} style={styles.dimmerLabel}>
+                  GOOGLE CLOUD TTS
+                </NeonText>
+                {googleTtsApiKey ? (
+                  <View style={styles.statusBadge}>
+                    <Check size={10} color="#39FF14" />
+                    <NeonText size={10} intensity={0.7} style={{ color: "#39FF14" }}>
+                      Connected
+                    </NeonText>
+                  </View>
+                ) : (
+                  <NeonText size={10} intensity={0.3}>
+                    Not configured
+                  </NeonText>
+                )}
+              </View>
+              <NeonText size={11} intensity={0.3} style={{ marginBottom: 8, lineHeight: 16 }}>
+                Add your Google Cloud API key for premium Neural2 voices.
+                Free tier includes ~6,600 alarm messages/month.
+              </NeonText>
+              <View style={[styles.apiKeyInputRow, { borderColor: colors.border }]}>
+                <TextInput
+                  style={[styles.apiKeyInput, { color: colors.text }]}
+                  value={apiKeyInput}
+                  onChangeText={setApiKeyInput}
+                  placeholder="Paste API key here..."
+                  placeholderTextColor={colors.textSecondary}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+              <View style={styles.apiKeyActions}>
+                <Pressable
+                  style={[styles.apiKeyBtn, { borderColor: colors.accent, opacity: apiKeyStatus === "validating" ? 0.5 : 1 }]}
+                  onPress={async () => {
+                    if (!apiKeyInput.trim()) return;
+                    setApiKeyStatus("validating");
+                    safeHaptic(() => Haptics.selectionAsync());
+                    const isValid = await validateGoogleTtsKey(apiKeyInput.trim());
+                    if (isValid) {
+                      setGoogleTtsApiKey(apiKeyInput.trim());
+                      setApiKeyStatus("valid");
+                    } else {
+                      setApiKeyStatus("invalid");
+                    }
+                  }}
+                  disabled={apiKeyStatus === "validating"}
+                >
+                  <NeonText size={12} intensity={0.7}>
+                    {apiKeyStatus === "validating" ? "Validating..." : "Save"}
+                  </NeonText>
+                </Pressable>
+                {googleTtsApiKey ? (
+                  <Pressable
+                    style={[styles.apiKeyBtn, { borderColor: "#FF3131" }]}
+                    onPress={() => {
+                      safeHaptic(() => Haptics.selectionAsync());
+                      setGoogleTtsApiKey("");
+                      setApiKeyInput("");
+                      setApiKeyStatus("idle");
+                    }}
+                  >
+                    <X size={12} color="#FF3131" />
+                    <NeonText size={12} intensity={0.7} style={{ color: "#FF3131" }}>
+                      Clear
+                    </NeonText>
+                  </Pressable>
+                ) : null}
+              </View>
+              {apiKeyStatus === "invalid" && (
+                <NeonText size={11} intensity={0.6} style={{ color: "#FF3131", marginTop: 4 }}>
+                  Invalid API key. Check that the key is correct and the Text-to-Speech API is enabled.
+                </NeonText>
+              )}
+              <Pressable
+                style={styles.helpLink}
+                onPress={() => {
+                  if (Platform.OS === "web") {
+                    window.open("https://console.cloud.google.com/apis/library/texttospeech.googleapis.com", "_blank");
+                  } else {
+                    Linking.openURL("https://console.cloud.google.com/apis/library/texttospeech.googleapis.com");
+                  }
+                }}
+              >
+                <ExternalLink size={11} color={colors.accent} />
+                <NeonText size={11} intensity={0.5} style={{ color: colors.accent }}>
+                  How to get a free API key
+                </NeonText>
+              </Pressable>
+            </View>
           </>
         )}
       </GlassCard>
@@ -668,5 +772,55 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
+  },
+  googleTtsSection: {
+    marginTop: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.08)",
+  },
+  googleTtsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 6,
+  },
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginLeft: "auto",
+  },
+  apiKeyInputRow: {
+    borderWidth: 1,
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  apiKeyInput: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    fontFamily: Platform.OS === "web" ? "monospace" : "SpaceMono",
+  },
+  apiKeyActions: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 8,
+  },
+  apiKeyBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  helpLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 10,
   },
 });

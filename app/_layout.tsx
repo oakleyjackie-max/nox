@@ -88,10 +88,11 @@ function TTSBanner({
 }
 
 function RootInner() {
-  const { isDark, dimmer, colors, ttsEnabled, ttsOptions, wakeSassLevel } = useTheme();
+  const { isDark, dimmer, colors, ttsEnabled, ttsOptions, wakeSassLevel, googleTtsApiKey } = useTheme();
   const ttsEnabledRef = useRef(ttsEnabled);
   const ttsOptionsRef = useRef(ttsOptions);
   const sassLevelRef = useRef(wakeSassLevel);
+  const googleTtsApiKeyRef = useRef(googleTtsApiKey);
 
   // TTS Banner state
   const [bannerMessage, setBannerMessage] = useState("");
@@ -112,6 +113,7 @@ function RootInner() {
   useEffect(() => { ttsEnabledRef.current = ttsEnabled; }, [ttsEnabled]);
   useEffect(() => { ttsOptionsRef.current = ttsOptions; }, [ttsOptions]);
   useEffect(() => { sassLevelRef.current = wakeSassLevel; }, [wakeSassLevel]);
+  useEffect(() => { googleTtsApiKeyRef.current = googleTtsApiKey; }, [googleTtsApiKey]);
 
   // Handle alarm trigger (both web and native)
   const handleAlarmTrigger = useCallback((body: string) => {
@@ -124,7 +126,7 @@ function RootInner() {
       speakMessage(body, {
         ...ttsOptionsRef.current,
         rate: ttsOptionsRef.current.rate * sassRate,
-      });
+      }, googleTtsApiKeyRef.current || undefined);
     }
   }, [showBanner]);
 

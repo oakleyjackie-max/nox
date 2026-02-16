@@ -38,6 +38,9 @@ interface ThemeContextValue {
   /** Minutes of day (0-1439) override for sky gradient, or null for real time */
   skyTimeOverride: number | null;
   setSkyTimeOverride: (minutes: number | null) => void;
+  /** User-provided Google Cloud TTS API key (stored locally) */
+  googleTtsApiKey: string;
+  setGoogleTtsApiKey: (key: string) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
@@ -63,6 +66,8 @@ const ThemeContext = createContext<ThemeContextValue>({
   setTtsRate: () => {},
   skyTimeOverride: null,
   setSkyTimeOverride: () => {},
+  googleTtsApiKey: "",
+  setGoogleTtsApiKey: () => {},
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
@@ -76,6 +81,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [ttsPitch, setTtsPitchState] = useState(DEFAULT_TTS_OPTIONS.pitch);
   const [ttsRate, setTtsRateState] = useState(DEFAULT_TTS_OPTIONS.rate);
   const [skyTimeOverride, setSkyTimeOverrideState] = useState<number | null>(null);
+  const [googleTtsApiKey, setGoogleTtsApiKeyState] = useState("");
 
   useEffect(() => {
     getItem<GlowMode>(STORAGE_KEYS.GLOW_MODE).then((saved) => {
@@ -104,6 +110,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     });
     getItem<number>(STORAGE_KEYS.TTS_RATE).then((saved) => {
       if (saved !== null && saved !== undefined) setTtsRateState(saved);
+    });
+    getItem<string>(STORAGE_KEYS.GOOGLE_TTS_API_KEY).then((saved) => {
+      if (saved) setGoogleTtsApiKeyState(saved);
     });
   }, []);
 
@@ -159,6 +168,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setSkyTimeOverrideState(minutes);
   }, []);
 
+  const setGoogleTtsApiKey = useCallback((key: string) => {
+    setGoogleTtsApiKeyState(key);
+    if (key) {
+      setItem(STORAGE_KEYS.GOOGLE_TTS_API_KEY, key);
+    } else {
+      setItem(STORAGE_KEYS.GOOGLE_TTS_API_KEY, "");
+    }
+  }, []);
+
   const isDark = colorScheme === "dark";
   const glowColor = GLOW_COLORS[glowMode];
   const glowRadius = GLOW_SHADOW_RADIUS[glowMode];
@@ -201,6 +219,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         setTtsRate,
         skyTimeOverride,
         setSkyTimeOverride,
+        googleTtsApiKey,
+        setGoogleTtsApiKey,
       }}
     >
       {children}

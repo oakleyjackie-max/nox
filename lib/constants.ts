@@ -56,6 +56,7 @@ export const STORAGE_KEYS = {
   TTS_LANGUAGE: "nox_tts_language",
   TTS_PITCH: "nox_tts_pitch",
   TTS_RATE: "nox_tts_rate",
+  GOOGLE_TTS_API_KEY: "nox_google_tts_api_key",
 } as const;
 
 export type ColorScheme = "light" | "dark";
